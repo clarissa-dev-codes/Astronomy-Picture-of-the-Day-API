@@ -1,6 +1,7 @@
 import os
 import urllib.request
 import json
+from datetime import datetime
 
 # --- SECURE LOCAL TESTING FALLBACK ---
 try:
@@ -29,7 +30,9 @@ if not API_KEY:
     print("Error: NASA_API environment variable not set.")
     exit(1)
 
-URL = f"https://api.nasa.gov/planetary/apod?api_key={API_KEY}"
+today_str = datetime.now().strftime("%Y-%m-%d")
+
+URL = f"https://api.nasa.gov/planetary/apod?api_key={API_KEY}&date={today_str}"
 print("Fetching today's cosmic data from NASA...")
 
 try:
@@ -113,7 +116,7 @@ try:
 
             print("Successfully compiled dynamic lock screen page into index.html.")
         else:
-            print(f"Failed to fetch data. NASA Status code: {response.status_code}")
+            print(f"Failed to fetch data. NASA Status code: {response.status}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
