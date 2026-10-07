@@ -54,6 +54,7 @@
             const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
+            // Backup high-res space background path fallback
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
@@ -61,21 +62,30 @@
                 if (!res.ok) throw new Error("API Route Failure");
                 
                 const posts = await res.json();
-                if (!posts || posts.length === 0) throw new Error("Null data footprint");
-                const data = posts[0];
+                
+                // CRITICAL FIX: Ensure the array structure is verified and pull the first record item index
+                if (!posts || !Array.isArray(posts) || posts.length === 0) throw new Error("Null array trace");
+                const data = posts[0]; 
 
                 const title = data.title?.rendered || data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
                 document.getElementById('date').innerText = (data.date || "").split("T")[0];
+                
+                // Extract description text mapping
                 document.getElementById('explanation').innerHTML = data.explanation || data.content?.rendered || "";
 
-                // Get media targets
+                // Isolate media links
                 let videoUrl = data.basic_html_url || "";
-                const imageUrl = data.featured_media_src_url || "";
+                let imageUrl = data.featured_media_src_url || "";
 
-                if (videoUrl && !videoUrl.includes('nasa-logo')) {
-                    // CRITICAL ENFORCEMENT: Force HTTPS connection to break past Mixed Content browser blocks
+                // Fallback check into internal apod nested fields if available
+                if (data.apod && typeof data.apod === 'object') {
+                    videoUrl = videoUrl || data.apod.url || "";
+                    imageUrl = imageUrl || data.apod.hdurl || data.apod.url || "";
+                }
+
+                if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('player.') || videoUrl.includes('html'))) {
                     if (videoUrl.startsWith("http://")) {
                         videoUrl = videoUrl.replace("http://", "https://");
                     }
@@ -93,10 +103,12 @@
                 card.style.opacity = "1";
 
             } catch (err) {
-                console.error("Layout load error:", err);
+                console.error("Dashboard render exception encountered:", err);
+                
+                // Fail-safe view activation routing so the application never loads empty black panels
                 document.getElementById('title').innerText = "Deep Space Network";
                 document.getElementById('date').innerText = new Date().toISOString().split('T')[0];
-                document.getElementById('explanation').innerText = "NASA transmission is routing. Enjoy this look at the stars while systems sync.";
+                document.getElementById('explanation').innerText = "NASA feeds are syncing. Enjoy this look at the cosmos while systems route telemetry.";
                 container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic View">`;
                 blurLayer.style.backgroundImage = `url('${defaultSpaceBg}')`;
                 blurLayer.style.display = "block";
