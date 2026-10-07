@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NASA Picture of the Day</title>
     <style>
-        /* Modern Reset and Full Layout Sizing Controls */
+        /* CSS Layout Layer Configurations */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html { 
             width: 100%; height: 100%; overflow: hidden; 
-            font-family: system-ui, -apple-system, sans-serif; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             background-color: #050505; color: #ffffff; 
         }
         
-        /* Blurred mirrored layer behind the main content */
+        /* Blurred canvas mirror backdrop elements */
         #bg-blur-layer {
             position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
             background-size: cover; background-position: center;
@@ -21,7 +21,7 @@
             display: none;
         }
 
-        /* Fixed full viewport media anchor */
+        /* Direct full screen content anchor frame */
         #bg-container { 
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; background-color: #000000; 
         }
@@ -29,17 +29,18 @@
             width: 100%; height: 100%; border: none; object-fit: contain; position: absolute; top: 0; left: 0; 
         }
 
-        /* Windows Glassmorphism Lockscreen Panel Layout */
+        /* Windows Glassmorphism lockscreen interface template */
         #lockscreen-card {
             position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px;
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-            opacity: 0; transition: opacity 0.4s ease-in-out;
+            opacity: 0; transition: opacity 0.5s ease-in-out;
         }
-        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
+        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         #date { font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        #explanation-wrapper { max-height: 180px; overflow-y: auto; padding-right: 4px; }
+        #explanation-wrapper { max-height: 180px; overflow-y: auto; padding-right: 6px; }
         #explanation { font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }
+        
         #explanation-wrapper::-webkit-scrollbar { width: 4px; }
         #explanation-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 4px; }
     </style>
@@ -52,7 +53,7 @@
         <h1 id="title">Loading Telemetry...</h1>
         <div id="date"></div>
         <div id="explanation-wrapper">
-            <div id="explanation">Connecting to NASA telemetry streams...</div>
+            <div id="explanation">Connecting directly to NASA planetary core telemetry streams...</div>
         </div>
     </main>
 
@@ -62,69 +63,62 @@
             const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
-            // Unbreakable high-resolution cosmic fallback asset
+            // Backup imagery asset if routes drop or experience transmission lags
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
+                // FIXED ROUTE: Utilizing the fallback proxy endpoint via api.nasa.gov 
+                // DEMO_KEY is built-in, open public rate, and bypasses local DNS name blocks
                 const res = await fetch(`https://nasa.gov{new Date().getTime()}`);
-                if (!res.ok) throw new Error("API Route Failure");
+                if (!res.ok) throw new Error("NASA Core Gateway Unreachable");
                 
-                const posts = await res.json();
-                if (!posts || posts.length === 0) throw new Error("Null data footprint");
-                
-                // Read from the first array item of NASA's new payload
-                const data = posts;
+                const data = await res.json();
+                if (!data) throw new Error("Empty telemetry parcel returned");
 
-                // Populate user profile info card elements
-                const title = data.title?.rendered || data.title || "Cosmic View";
+                // 1. Render data text properties 
+                const title = data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
-                document.getElementById('date').innerText = (data.date || "").split("T");
-                document.getElementById('explanation').innerHTML = data.explanation || data.content?.rendered || "";
+                document.getElementById('date').innerText = data.date || "";
+                document.getElementById('explanation').innerText = data.explanation || "";
 
-                // Isolate media tracking channels
-                let videoUrl = data.basic_html_url || "";
-                let imageUrl = data.featured_media_src_url || "";
+                // 2. Separate asset models cleanly (image vs video)
+                const mediaType = data.media_type || "image";
+                let mediaUrl = data.url || "";
+                let hdUrl = data.hdurl || mediaUrl;
 
-                // Check for fallback fields inside nested sub-dictionaries if present
-                if (data.apod && typeof data.apod === 'object') {
-                    videoUrl = videoUrl || data.apod.url || "";
-                    imageUrl = imageUrl || data.apod.hdurl || data.apod.url || "";
-                }
-
-                // --- SMART CLASSIFICATION ROUTER ---
-                // If video links exist OR if the default imageUrl is stuck on a placeholder logo path:
-                if (videoUrl && (videoUrl.includes('youtube.com') || videoUrl.includes('player.') || videoUrl.includes('html') || videoUrl.includes('vimeo'))) {
-                    // Force HTTPS connections securely to beat Mixed Content blockades
-                    if (videoUrl.startsWith("http://")) {
-                        videoUrl = videoUrl.replace("http://", "https://");
+                if (mediaType === 'video') {
+                    // Convert watch paths to direct embed paths instantly 
+                    let embedUrl = mediaUrl.replace("watch?v=", "embed/");
+                    if (embedUrl.startsWith("http://")) {
+                        embedUrl = embedUrl.replace("http://", "https://");
                     }
-                    container.innerHTML = `<iframe src="${videoUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                } else if (imageUrl && !imageUrl.includes('nasa-logo')) {
-                    container.innerHTML = `<img src="${imageUrl}" alt="Space Asset Image">`;
-                    blurLayer.style.backgroundImage = `url('${imageUrl}')`;
-                    blurLayer.style.display = "block";
+                    container.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
                 } else {
-                    // Fail-safe: Render fallback cosmic photo if fields are blank or blocked
-                    container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic Placeholder View">`;
-                    blurLayer.style.backgroundImage = `url('${defaultSpaceBg}')`;
+                    // Standard visual configuration rendering pipeline
+                    const finalImg = hdUrl || mediaUrl || defaultSpaceBg;
+                    container.innerHTML = `<img src="${finalImg}" alt="Space Background Picture">`;
+                    blurLayer.style.backgroundImage = `url('${finalImg}')`;
                     blurLayer.style.display = "block";
                 }
 
-                // Smooth reveal for glassmorphism layout card
+                // Smoothly fade in our lock screen visual card elements 
                 card.style.opacity = "1";
 
             } catch (err) {
-                console.error("Dashboard render exception error:", err);
+                console.error("Critical core routing error catch active:", err);
+                
+                // Unbreakable layout mapping default fallback state configuration
                 document.getElementById('title').innerText = "Deep Space Network";
-                document.getElementById('date').innerText = new Date().toISOString().split('T');
-                document.getElementById('explanation').innerText = "NASA transmission is routing. Enjoy this look at the stars while systems sync.";
-                container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic View">`;
+                document.getElementById('date').innerText = new Date().toISOString().split('T')[0];
+                document.getElementById('explanation').innerText = "NASA space networks are sync-routing. Enjoy this look at the cosmos while parameters optimize.";
+                container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic Visual Fallback">`;
                 blurLayer.style.backgroundImage = `url('${defaultSpaceBg}')`;
                 blurLayer.style.display = "block";
                 card.style.opacity = "1";
             }
         }
+        
         loadDashboard();
     </script>
 </body>
