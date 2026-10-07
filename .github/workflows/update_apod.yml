@@ -27,10 +27,10 @@ jobs:
           NASA_API: ${{ secrets.NASA_API }} # Injects your hidden key securely from GitHub
         run: python apod.py
 
-      - name: Commit and Push index.html
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
-          git add index.html
-          git commit -m "Automated update: Today's Space Lock Screen" || exit 0
-          git push
+      # Using an official action to handle deployment safely without command-line crashes
+      - name: Deploy to GitHub Pages Branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .
+          publish_branch: gh-pages
