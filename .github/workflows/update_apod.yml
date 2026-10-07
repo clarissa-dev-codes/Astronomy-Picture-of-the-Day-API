@@ -1,36 +1,40 @@
-name: Build NASA Daily Page
+name: Automated Daily NASA APOD Synchronizer
 
 on:
-  push:
-    branches:
-      - main
   schedule:
-    - cron: '0 8 * * *' # Runs fully on autopilot every single morning
+    # Triggers every morning at 08:00 AM UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+    # Allows you to trigger the compilation process manually from the UI panel
 
 permissions:
-  contents: write
+  contents: write # Explicitly grants the workflow bot clearance to save data updates
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout Main Repository Branch Context
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Initialize Hosted Python Environment
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11' # Fixed execution baseline context
 
-      - name: Run Python script to generate index.html
-        env:
-          NASA_API: ${{ secrets.NASA_API }} # Injects your hidden key securely from GitHub
+      - name: Run Core Data Collection Engine
         run: python apod.py
 
-      # Using an official action to handle deployment safely without command-line crashes
-      - name: Deploy to GitHub Pages Branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
-          publish_branch: gh-pages
+      - name: Sync and Commit Generated Data Artifacts
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          
+          # Stage the freshly updated json file
+          git add data.json
+          
+          # Commit only if data changes are present to prevent workflow failure loops
+          git commit -m "chore: automated telemetry refresh [$(date -u +'%Y-%m-%d %H:%M:%S' UTC)]" || exit 0
+          
+          git push origin main
