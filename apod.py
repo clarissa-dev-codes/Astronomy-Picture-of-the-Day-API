@@ -3,12 +3,12 @@ import urllib.request
 import json
 from datetime import datetime
 
-# The upcoming open REST endpoint does not require API keys
+# The upcoming open REST endpoint does not require API keys or secrets
 URL = "https://nasa.gov"
 print("Pulling the absolute latest live data directly from NASA's backend...")
 
 try:
-    # Set a User-Agent so NASA's server block doesn't deny python's connection
+    # Set a User-Agent so NASA's server firewall doesn't drop the connection
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
@@ -31,7 +31,7 @@ try:
             raw_date = post.get('date', '')
             date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
             
-            # Core change: Grab the raw image source asset URL
+            # Grab the raw image source asset URL
             img_src = post.get('featured_media_src_url', '')
             
             # Check fallback configurations inside nested dictionary parameters
@@ -131,7 +131,6 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
-                # Appending the ?v= timestamp breaks local browser image file memory locks
                 html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";</script>"""
             elif media_type == 'video':
                 embed_url = img_src.replace("watch?v=", "embed/")
