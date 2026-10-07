@@ -5,33 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NASA Picture of the Day</title>
     <style>
-        /* Modern Reset and Layout Controls */
+        /* Geometry & Viewport Sizing Controls */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body, html { 
             width: 100%; height: 100%; overflow: hidden; 
-            font-family: system-ui, -apple-system, sans-serif; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             background-color: #050505; color: #ffffff; 
         }
         
-        /* Fullscreen Video/Image Workspace */
-        #bg-container { 
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background-color: #000000; 
-        }
-        
-        /* Forces the video iframe or image element to take up 100% of the screen dimensions */
-        #bg-container iframe, #bg-container img { 
-            width: 100%; height: 100%; border: none; object-fit: cover; position: absolute; top: 0; left: 0; 
+        /* Blurred background mirror backdrop effect layer */
+        #bg-blur-layer {
+            position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
+            background-size: cover; background-position: center;
+            filter: blur(40px) brightness(0.3); z-index: 1; opacity: 0.75;
+            display: none;
         }
 
-        /* Windows Glassmorphism Info Panel UI Card */
+        /* Direct Canvas Media Layout Container */
+        #bg-container { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; background-color: #000000; 
+        }
+        #bg-container iframe, #bg-container img { 
+            width: 100%; height: 100%; border: none; object-fit: contain; position: absolute; top: 0; left: 0; 
+        }
+
+        /* Windows Glassmorphism Lockscreen Information Card */
         #lockscreen-card {
-            position: absolute; bottom: 40px; left: 40px; z-index: 2; max-width: 420px; padding: 24px;
+            position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px;
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; 
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
             opacity: 0; transition: opacity 0.5s ease-in-out;
         }
-        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
+        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
         #date { font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
         #explanation-wrapper { max-height: 180px; overflow-y: auto; padding-right: 6px; }
         #explanation { font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }
@@ -41,74 +46,81 @@
     </style>
 </head>
 <body>
+    <div id="bg-blur-layer"></div>
     <div id="bg-container"></div>
     
     <main id="lockscreen-card">
         <h1 id="title">Loading Telemetry...</h1>
         <div id="date"></div>
         <div id="explanation-wrapper">
-            <div id="explanation">Connecting directly to cosmic telemetry streams...</div>
+            <div id="explanation">Connecting directly to planetary core telemetry streams...</div>
         </div>
     </main>
 
     <script>
         async function loadDashboard() {
             const container = document.getElementById('bg-container');
+            const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
-            // Backup high-res space background if NASA has data sync delays
+            // Backup imagery asset if server connections experience timing lags
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
-                // Fetch directly from NASA's mirror feed using a live cache-buster parameter
-                const res = await fetch(`https://githubusercontent.com{new Date().getTime()}`);
-                if (!res.ok) throw new Error("API Route Failure");
+                // FIXED FLAT STRING: Uses a globally whitelisted public space API database mirror link
+                // Appends a unique dynamic numbers fragment cleanly to bypass Chrome cache memory locks
+                const timestamp = Date.now();
+                const targetUrl = "https://githubusercontent.com" + timestamp;
+                
+                const res = await fetch(targetUrl);
+                if (!res.ok) throw new Error("Server response code fallback");
                 
                 const data = await res.json();
-                if (!data) throw new Error("Null data footprint");
+                if (!data) throw new Error("Empty tracking data parameters");
 
-                // 1. Populate Text Strings
+                // 1. Map Text Blocks
                 const title = data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
                 document.getElementById('date').innerText = data.date || "";
                 document.getElementById('explanation').innerText = data.explanation || "";
 
-                // 2. Map Media Assets
+                // 2. Classify asset channels securely (handles images vs. videos)
                 const mediaType = data.media_type || "image";
                 let mediaUrl = data.url || "";
                 let hdUrl = data.hdurl || mediaUrl;
 
                 if (mediaType === 'video') {
-                    // Convert YouTube watch links to direct embed links natively
+                    // Convert watch paths to direct embed configurations instantly
                     let embedUrl = mediaUrl.replace("watch?v=", "embed/");
-                    
-                    // CRITICAL FIX: Rewrite http to https to break past Chrome's secure mixed content lock block
                     if (embedUrl.startsWith("http://")) {
                         embedUrl = embedUrl.replace("http://", "https://");
                     }
-                    
-                    // Inject responsive full-viewport iframe loop player container
                     container.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
                 } else {
                     const finalImg = hdUrl || mediaUrl || defaultSpaceBg;
                     container.innerHTML = `<img src="${finalImg}" alt="Space Background Picture">`;
+                    blurLayer.style.backgroundImage = "url('" + finalImg + "')";
+                    blurLayer.style.display = "block";
                 }
 
-                // Smoothly fade in our completed details panel card interface
+                // Smoothly fade in our complete layout information overlay block
                 card.style.opacity = "1";
 
             } catch (err) {
-                console.error("Dashboard render exception:", err);
+                console.error("Dashboard exception intercept block:", err);
                 
-                // Absolute structural layout backup state configuration
-                document.getElementById('title').innerText = "Deep Space Network";
+                // Unbreakable default display state layout configuration 
+                document.getElementById('title').innerText = "Deep Space Grid";
                 document.getElementById('date').innerText = new Date().toISOString().split('T')[0];
-                document.getElementById('explanation').innerText = "NASA transmission lines are re-routing. Enjoy this look at the cosmos while systems optimize parameters.";
+                document.getElementById('explanation').innerText = "NASA space networks are sync-routing. Enjoy this look at the cosmos while parameters optimize.";
                 container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic Visual Fallback">`;
+                blurLayer.style.backgroundImage = "url('" + defaultSpaceBg + "')";
+                blurLayer.style.display = "block";
                 card.style.opacity = "1";
             }
         }
+        
         loadDashboard();
     </script>
 </body>
