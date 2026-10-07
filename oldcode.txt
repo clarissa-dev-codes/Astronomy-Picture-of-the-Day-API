@@ -1,0 +1,38 @@
+#streamlit is too much. Just gonna make a static webpage and host on Github
+#need to make that happen today so that I can send that to Mrs. Horton
+
+
+import os
+import urllib.request
+import json
+
+
+API_KEY = os.environ.get('API_KEY')  #API KEY is in the .env, and should be ignored in the .gitignore file. This is to keep the API key secure and not expose it in the codebase.
+
+
+URL = f"https://api.nasa.gov/planetary/apod?api_key={API_KEY}"
+print("Fetching today's cosmic data from NASA...")
+
+try:
+    with urllib.request.urlopen(URL) as response:
+        if response.status == 200:
+
+            raw_data = response.read().decode("utf-8")
+            data = json.loads(raw_data)
+
+            
+            print("\n" + "=" * 40)
+            print(f"TITLE: {data.get('title')}") #need that
+            print(f"DATE: {data.get('date')}")  #need that
+            print("=" * 40)
+            print(f"EXPLANATION: {data.get('explanation')}") #need this but without the hyperlinks showing
+            print(f"IMAGE URL: {data.get('url')}") #need that but it needs to be saved to a variable
+            print("=" * 40)
+
+        else:
+            print(f"Failed to fetch data from NASA. Status code: {response.status}")
+
+            
+
+except Exception as e:
+    print(f"An error occurred while connecting to NASA: {e}")

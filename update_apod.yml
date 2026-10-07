@@ -1,0 +1,36 @@
+name: Build NASA Daily Page
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 8 * * *' # Runs fully on autopilot every single morning
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run Python script to generate index.html
+        env:
+          NASA_API: ${{ secrets.NASA_API }} # Injects your hidden key securely from GitHub
+        run: python apod.py
+
+      - name: Commit and Push index.html
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          git add index.html
+          git commit -m "Automated update: Today's Space Lock Screen" || exit 0
+          git push
