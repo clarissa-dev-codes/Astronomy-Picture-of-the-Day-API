@@ -58,9 +58,7 @@
     </main>
 
     <script>
-        // GitHub Actions will automatically replace this text string during deployment
-        const NASA_API = "PARSE_NASA_KEY";
-
+        // NOTE: The new WordPress APOD engine does not require an API key to fetch the current day's data!
         async function loadDashboard() {
             const container = document.getElementById('bg-container');
             const blurLayer = document.getElementById('bg-blur-layer');
@@ -70,32 +68,39 @@
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
-                // Dynamically injecting processed NASA_API secret token
-                const targetUrl = `https://nasa.gov{NASA_API}`;
+                // FIXED: Updated to NASA's new live WordPress endpoint feed
+                const targetUrl = "https://science.nasa.gov/wp-json/wp/v2/apod-basic";
                 
                 const res = await fetch(targetUrl);
                 if (!res.ok) throw new Error("Server response code fallback");
                 
-                const data = await res.json();
-                if (!data) throw new Error("Empty tracking data parameters");
+                // The new endpoint returns an array containing the latest posts
+                const posts = await res.json();
+                if (!posts || posts.length === 0) throw new Error("Empty tracking data parameters");
+                
+                // Grab the single newest entry 
+                const data = posts[0];
 
-                // 1. Map Text Blocks
-                const title = data.title || "Cosmic View";
+                // 1. Map Text Blocks (Adjusted for new WordPress property names)
+                const title = data.title?.rendered || data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
-                document.getElementById('date').innerText = data.date || "";
-                document.getElementById('explanation').innerText = data.explanation || "";
+                document.getElementById('date').innerText = data.date ? data.date.split('T')[0] : "";
+                
+                // Strip out HTML paragraph tags from the new feed description if they exist
+                const cleanExplanation = data.explanation || "";
+                document.getElementById('explanation').innerText = cleanExplanation.replace(/<\/?[^>]+(>|\$)/g, "");
 
                 // 2. Classify asset channels securely (handles images vs. videos)
                 const mediaType = data.media_type || "image";
                 let mediaUrl = data.url || "";
                 let hdUrl = data.hdurl || mediaUrl;
 
-                if (mediaType === 'video') {
+                if (mediaType === 'video' || mediaUrl.includes('youtube.com') || mediaUrl.includes('youtu.be')) {
                     // Robust YouTube link processor handling both watch?v= and shared youtu.be URLs
                     let embedUrl = mediaUrl;
-                    if (embedUrl.includes("://youtube.com")) {
-                        embedUrl = embedUrl.replace("://youtube.com", "://youtube.com");
+                    if (embedUrl.includes("youtube.com/watch?v=")) {
+                        embedUrl = embedUrl.replace("youtube.com/watch?v=", "://youtube.com");
                     } else if (embedUrl.includes("youtu.be/")) {
                         embedUrl = embedUrl.replace("youtu.be/", "://youtube.com");
                     }
@@ -110,7 +115,7 @@
                     const completeEmbedUrl = `${embedUrl}${paramSeparator}autoplay=1&mute=1&loop=1&playlist=${getVideoId(embedUrl)}&controls=0`;
 
                     container.innerHTML = `<iframe src="${completeEmbedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                    blurLayer.style.display = "none"; // Hide background blur element for videos
+                    blurLayer.style.display = "none"; 
                 } else {
                     const finalImg = hdUrl || mediaUrl || defaultSpaceBg;
                     container.innerHTML = `<img src="${finalImg}" alt="Space Background Picture">`;
