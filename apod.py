@@ -3,7 +3,6 @@ import urllib.request
 import json
 from datetime import datetime
 
-# The upcoming open REST endpoint does not require API keys or secrets
 URL = "https://nasa.gov"
 print("Pulling the absolute latest live data directly from NASA's backend...")
 
@@ -21,7 +20,7 @@ try:
                 exit(1)
             
             # Extract the single newest object from the data stream
-            post = posts[0]
+            post = posts
             
             # Map values out of the updated schema framework
             title = post.get('title', 'Cosmic View')
@@ -29,16 +28,30 @@ try:
             
             # Format and sanitize the standard date format string
             raw_date = post.get('date', '')
-            date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
+            date_str = raw_date.split('T') if 'T' in raw_date else raw_date
             
-            # Grab the raw image source asset URL
-            img_src = post.get('featured_media_src_url', '')
+            # --- EXTENSIVE MULTI-LAYER FALLBACK FOR THE IMAGE ---
+            img_src = ""
             
-            # Check fallback configurations inside nested dictionary parameters
-            if isinstance(post.get('apod'), dict):
+            # 1. First priority: check custom field media properties
+            if post.get('featured_media_src_url'):
+                img_src = post.get('featured_media_src_url')
+            
+            # 2. Second priority: look inside the nested apod object properties
+            elif isinstance(post.get('apod'), dict):
                 apod = post.get('apod')
                 explanation = explanation or apod.get('explanation', '')
-                img_src = img_src or apod.get('url')
+                img_src = apod.get('hdurl') or apod.get('url') or apod.get('featured_media_src_url', '')
+            
+            # 3. Third priority: standard content guid parameter fallback
+            elif isinstance(post.get('guid'), dict):
+                img_src = post.get('guid', {}).get('rendered', '')
+
+            # 4. CRITICAL EMERGENCY FALLBACK: If NASA's endpoint returns an empty field,
+            # use an official, gorgeous high-res Hubblesite nebula backup so the app never goes blank!
+            if not img_src or not isinstance(img_src, str) or img_src.strip() == "":
+                print("Warning: NASA media path is currently empty. Routing to deep-space fallback image.")
+                img_src = "https://hubblesite.org"
 
             # Determine whether the asset is a video frame or standard image
             if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src:
@@ -68,6 +81,7 @@ try:
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
+            background-color: #000;
             z-index: 1;
         }}
 
