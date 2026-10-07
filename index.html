@@ -3,85 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NASA Picture of the Day</title>
+    <title>NASA Picture of the Day - Cosmic View</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; background-color: #050505; color: #fff; }
-        
-        #bg-blur-layer {
-            position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
-            background-size: cover; background-position: center;
-            filter: blur(40px) brightness(0.3); z-index: 1; opacity: 0.75;
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000; }
+
+        #bg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+            transition: background-image 0.5s ease-in-out;
         }
-        #bg-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; }
-        #bg-container iframe, #bg-container img { width: 100%; height: 100%; border: none; object-fit: contain; position: absolute; }
+
+        #bg-container iframe {
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            border: none;
+        }
 
         #lockscreen-card {
-            position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px;
-            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            z-index: 2;
+            max-width: 420px;
+            padding: 24px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
         }
-        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
-        #date { font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-bottom: 12px; text-transform: uppercase; }
-        #explanation-wrapper { max-height: 180px; overflow-y: auto; }
-        #explanation { font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }
+
+        #title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        #date {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #explanation-wrapper {
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        #explanation {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        #explanation-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #explanation-wrapper::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
-    <div id="bg-blur-layer"></div>
     <div id="bg-container"></div>
-    
     <main id="lockscreen-card">
-        <h1 id="title">Loading Telemetry...</h1>
+        <div id="title">Loading...</div>
         <div id="date"></div>
         <div id="explanation-wrapper">
-            <div id="explanation">Synchronizing with NASA data stream...</div>
+            <div id="explanation">Connecting to NASA telemetry...</div>
         </div>
     </main>
 
     <script>
-        async function loadDashboard() {
+        // Directly contacts the upcoming post-2026 production platform 
+        // Adding a cache-busting timestamp guarantees GitHub won't serve stale data
+        const cacheBuster = new Date().getTime();
+        const URL = `https://nasa.gov{cacheBuster}`;
+
+        async function fetchAPOD() {
             try {
-                // Fetch your local data snapshot with a cache buster to force updates
-                const res = await fetch(`data.json?v=${new Date().getTime()}`);
-                const data = await res.json();
+                const response = await fetch(URL);
+                if (!response.ok) throw new Error("Network latency detected.");
+                
+                const posts = await response.json();
+                if (!posts || posts.length === 0) return;
 
-                // 1. Resolve Title text fields cleanly
-                const title = data.title?.rendered || data.title || "Cosmic View";
+                const post = posts[0];
+                
+                // Extract elements safely according to the updated NASA structure
+                const title = post.title?.rendered || post.title || "Cosmic View";
+                const dateRaw = post.date || "";
+                const cleanDate = dateRaw.split("T")[0]; // Drops time tracking fragments
+                const explanation = post.explanation || post.content?.rendered || "";
+                
+                // Locate media assets
+                const assetUrl = post.hdurl || post.url || post.featured_media_src_url || "";
+                
+                // Update text elements
                 document.getElementById('title').innerText = title;
-                document.title = `NASA APOD - ${title}`;
+                document.getElementById('date').innerText = cleanDate;
+                document.getElementById('explanation').innerHTML = explanation;
+                document.title = `NASA Picture of the Day - ${title}`;
 
-                // 2. Resolve Date fields
-                document.getElementById('date').innerText = (data.date || "").split("T")[0];
-
-                // 3. Resolve Explanation descriptors
-                document.getElementById('explanation').innerHTML = data.explanation || data.content?.rendered || "";
-
-                // 4. Fallback asset verification logic checks
-                const mediaUrl = data.basic_html_url || "";
-                const imgUrl = data.featured_media_src_url || "";
                 const container = document.getElementById('bg-container');
-                const blurLayer = document.getElementById('bg-blur-layer');
-
-                // If a valid alternative HTML or iframe media url is provided, default to responsive frame
-                if (mediaUrl && !mediaUrl.includes('nasa-logo')) {
-                    container.innerHTML = `<iframe src="${mediaUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                    blurLayer.style.display = "none";
-                } else if (imgUrl && !imgUrl.includes('nasa-logo')) {
-                    container.innerHTML = `<img src="${imgUrl}" alt="Space Asset">`;
-                    blurLayer.style.backgroundImage = `url('${imgUrl}')`;
-                } else {
-                    // Universal default placeholder if NASA's upload window goes completely blank
-                    const backup = "https://unsplash.com";
-                    container.innerHTML = `<img src="${backup}" alt="Space Fallback">`;
-                    blurLayer.style.backgroundImage = `url('${backup}')`;
+                
+                // Render asset types correctly
+                if (assetUrl.includes('youtube.com') || assetUrl.includes('vimeo.com') || assetUrl.includes('player.')) {
+                    let embedUrl = assetUrl.replace("watch?v=", "embed/");
+                    container.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay"></iframe>`;
+                } else if (assetUrl) {
+                    container.style.backgroundImage = `url('${assetUrl}')`;
                 }
-            } catch (err) {
-                console.error("Dashboard render block exception:", err);
+
+                // Smoothly reveal layout card
+                document.getElementById('lockscreen-card').style.opacity = "1";
+
+            } catch (error) {
+                console.error("APOD Error:", error);
                 document.getElementById('title').innerText = "System Offline";
+                document.getElementById('explanation').innerText = "Unable to route request to NASA servers. Please refresh shortly.";
             }
         }
-        loadDashboard();
+
+        fetchAPOD();
     </script>
 </body>
 </html>
