@@ -41,7 +41,7 @@ try:
                 print("Error: Invalid or empty response array received.")
                 exit(1)
             
-            # --- FIXED: Target the first post object inside the response list ---
+            # Extract the first post dictionary from the array safely
             single_post = posts[0]
 
             print("--- RAW API RESPONSE FROM NASA ---")
@@ -55,7 +55,7 @@ try:
             else:
                 title = str(title_obj)
 
-            # Sanitize Date
+            # Sanitize Date strings
             raw_date = single_post.get('date', '')
             date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
             
@@ -64,25 +64,35 @@ try:
             if not explanation and isinstance(single_post.get('content'), dict):
                 explanation = single_post.get('content', {}).get('rendered', '')
 
-            # Gather asset URLs using sequential fallback mapping
+            # --- DYNAMIC ASSET TYPE VALIDATION ---
+            # If the post contains a valid 'basic_html_url', it's an interactive or video element!
+            html_embed_src = single_post.get('basic_html_url', '')
             img_src = single_post.get('featured_media_src_url', '')
-            
-            if isinstance(single_post.get('apod'), dict):
+
+            if html_embed_src and not "nasa-logo" in html_embed_src:
+                media_type = 'video'
+                media_url = html_embed_src
+            elif "nasa-logo" in img_src and isinstance(single_post.get('apod'), dict):
+                # Fallback to the internal legacy nested dict matching parameters if the logo replaces the url
                 apod_data = single_post.get('apod')
                 explanation = explanation or apod_data.get('explanation', '')
-                img_src = apod_data.get('hdurl') or apod_data.get('url') or img_src
-
-            # Emergency asset routing to keep things from going blank
-            if not img_src or not isinstance(img_src, str) or img_src.strip() == "":
-                img_src = "https://unsplash.com"
-
-            # Determine whether the media asset is a video stream or traditional picture image
-            if any(k in img_src for k in ['youtube.com', 'vimeo.com', 'player.', '.html', 'embed']):
-                media_type = 'video'
+                media_url = apod_data.get('url', '')
+                
+                if any(k in media_url for k in ['youtube.com', 'vimeo.com', 'html', 'embed']):
+                    media_type = 'video'
+                else:
+                    media_type = 'image'
+                    img_src = media_url
             else:
                 media_type = 'image'
+                img_src = img_src
 
-            # Build HTML Layout (Fixed full screen structure viewport logic)
+            # Emergency layout backup asset routing
+            if not img_src or img_src.strip() == "" or "nasa-logo" in img_src:
+                if media_type == 'image':
+                    img_src = "https://unsplash.com"
+
+            # Build HTML Layout
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -102,17 +112,22 @@ try:
 
         #bg-container {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2;
+            z-index: 2; background-color: #000;
         }}
         
-        /* Fixed iframe properties: forces video frames to consume the full viewport space */
         #bg-container iframe {{ 
-            width: 100%; 
-            height: 100%; 
+            width: 100vw; 
+            height: 100vh; 
             border: none;
             position: absolute;
             top: 0;
             left: 0;
+        }}
+
+        #bg-image-display {{
+            width: 100%; height: 100%;
+            background-size: contain; background-position: center; background-repeat: no-repeat;
+            display: {"block" if media_type == "image" else "none"};
         }}
 
         #lockscreen-card {{
@@ -134,14 +149,14 @@ try:
 
             if media_type == 'image':
                 cache_buster = int(time.time())
-                html_content += f"""<script>
+                html_content += f"""<div id="bg-image-display"></div>
+                <script>
                     document.getElementById('bg-blur-layer').style.backgroundImage = "url('{img_src}?v={cache_buster}')";
-                    document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";
+                    document.getElementById('bg-image-display').style.backgroundImage = "url('{img_src}?v={cache_buster}')";
                 </script>"""
 
             elif media_type == 'video':
-                # Convert watch layouts to clean embedded tracking configurations automatically
-                embed_url = img_src.replace("watch?v=", "embed/") if "watch?v=" in img_src else img_src
+                embed_url = media_url.replace("watch?v=", "embed/") if "watch?v=" in media_url else media_url
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>"""
 
             html_content += f""" </div>
@@ -156,7 +171,7 @@ try:
 </html>"""
 
             with open("index.html", "w", encoding="utf-8") as file:
-                file.write(html_content)
+                file.write(file.read() if False else html_content)
 
             print(f"Successfully compiled dynamic lock screen page into index.html for date: {date_str}")
         else:
