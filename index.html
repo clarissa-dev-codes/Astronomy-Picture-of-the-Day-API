@@ -58,17 +58,20 @@
     </main>
 
     <script>
+        // GitHub Actions will automatically replace this text string during deployment
+        const NASA_API = "PARSE_NASA_KEY";
+
         async function loadDashboard() {
             const container = document.getElementById('bg-container');
             const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
-            // Fixed fallback picture URL (Unsplash home page isn't a raw image stream)
+            // Fixed fallback picture URL
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
-                // FIXED: Changed to the official live NASA API endpoint
-                const targetUrl = "https://nasa.gov";
+                // Dynamically injecting your processed NASA_API secret token
+                const targetUrl = `https://nasa.gov{NASA_API}`;
                 
                 const res = await fetch(targetUrl);
                 if (!res.ok) throw new Error("Server response code fallback");
@@ -89,7 +92,7 @@
                 let hdUrl = data.hdurl || mediaUrl;
 
                 if (mediaType === 'video') {
-                    // FIXED: Robust YouTube link processor handling both watch?v= and shared youtu.be URLs
+                    // Robust YouTube link processor handling both watch?v= and shared youtu.be URLs
                     let embedUrl = mediaUrl;
                     if (embedUrl.includes("://youtube.com")) {
                         embedUrl = embedUrl.replace("://youtube.com", "://youtube.com");
@@ -102,12 +105,12 @@
                         embedUrl = embedUrl.replace("http://", "https://");
                     }
 
-                    // Dynamically append video parameters properly checking if a '?' parameter sequence already exists
+                    // Dynamically append video parameters, checking if a '?' parameter sequence already exists
                     const paramSeparator = embedUrl.includes("?") ? "&" : "?";
                     const completeEmbedUrl = `${embedUrl}${paramSeparator}autoplay=1&mute=1&loop=1&playlist=${getVideoId(embedUrl)}&controls=0`;
 
                     container.innerHTML = `<iframe src="${completeEmbedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                    blurLayer.style.display = "none"; // Videos don't natively map to background image styling layers
+                    blurLayer.style.display = "none"; // Hide background blur element for videos
                 } else {
                     const finalImg = hdUrl || mediaUrl || defaultSpaceBg;
                     container.innerHTML = `<img src="${finalImg}" alt="Space Background Picture">`;
