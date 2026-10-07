@@ -12,6 +12,7 @@
             position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
             background-size: cover; background-position: center;
             filter: blur(40px) brightness(0.3); z-index: 1; opacity: 0.75;
+            display: none;
         }
         #bg-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; }
         #bg-container iframe, #bg-container img { width: 100%; height: 100%; border: none; object-fit: contain; position: absolute; }
@@ -20,6 +21,7 @@
             position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px;
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            opacity: 0; transition: opacity 0.4s ease-in-out;
         }
         #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
         #date { font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-bottom: 12px; text-transform: uppercase; }
@@ -35,50 +37,60 @@
         <h1 id="title">Loading Telemetry...</h1>
         <div id="date"></div>
         <div id="explanation-wrapper">
-            <div id="explanation">Synchronizing with NASA data stream...</div>
+            <div id="explanation">Connecting directly to NASA space network...</div>
         </div>
     </main>
 
     <script>
         async function loadDashboard() {
             try {
-                // Fetch your local data snapshot with a cache buster to force updates
-                const res = await fetch(`./data.json?v=${new Date().getTime()}`);
-                const data = await res.json();
+                // Connects directly to NASA's production database wrapper with a timestamp cache-buster
+                const res = await fetch(`https://nasa.gov{new Date().getTime()}`);
+                const posts = await res.json();
+                
+                if (!posts || posts.length === 0) throw new Error("Empty payload payload.");
+                const data = posts[0];
 
-                // 1. Resolve Title text fields cleanly
+                // 1. Resolve Title
                 const title = data.title?.rendered || data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
 
-                // 2. Resolve Date fields
+                // 2. Resolve Date (Cleans up standard WordPress timestamps)
                 document.getElementById('date').innerText = (data.date || "").split("T")[0];
 
-                // 3. Resolve Explanation descriptors
+                // 3. Resolve Explanation 
                 document.getElementById('explanation').innerHTML = data.explanation || data.content?.rendered || "";
 
-                // 4. Fallback asset verification logic checks
+                // 4. Extract asset paths
                 const mediaUrl = data.basic_html_url || "";
                 const imgUrl = data.featured_media_src_url || "";
+                
                 const container = document.getElementById('bg-container');
                 const blurLayer = document.getElementById('bg-blur-layer');
 
-                // If a valid alternative HTML or iframe media url is provided, default to responsive frame
+                // Evaluate whether the content is a dynamic element or an image file
                 if (mediaUrl && !mediaUrl.includes('nasa-logo')) {
                     container.innerHTML = `<iframe src="${mediaUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                    blurLayer.style.display = "none";
                 } else if (imgUrl && !imgUrl.includes('nasa-logo')) {
                     container.innerHTML = `<img src="${imgUrl}" alt="Space Asset">`;
                     blurLayer.style.backgroundImage = `url('${imgUrl}')`;
+                    blurLayer.style.display = "block";
                 } else {
-                    // Universal default placeholder if NASA's upload window goes completely blank
+                    // Fail-safe high-res fallback background if NASA's endpoint has asset syncing gaps
                     const backup = "https://unsplash.com";
                     container.innerHTML = `<img src="${backup}" alt="Space Fallback">`;
                     blurLayer.style.backgroundImage = `url('${backup}')`;
+                    blurLayer.style.display = "block";
                 }
+
+                // Smooth fade-in for the text interface card once data assets lock in
+                document.getElementById('lockscreen-card').style.opacity = "1";
+
             } catch (err) {
-                console.error("Dashboard render block exception:", err);
+                console.error("Dashboard exception:", err);
                 document.getElementById('title').innerText = "System Offline";
+                document.getElementById('explanation').innerText = "Unable to securely pull data parameters from NASA channels.";
             }
         }
         loadDashboard();
