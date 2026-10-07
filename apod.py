@@ -22,15 +22,15 @@ except Exception as fallback_err:
 title = "Cosmic Windows Lockscreen"
 date_str = "Awaiting Sync"
 explanation = "Connecting to NASA's deep space network. Your daily space update will populate momentarily."
-hd_url = "https://unsplash.com" # High-res space backup image
+hd_url = "https://unsplash.com" 
 media_type = "image"
 
-# NOTE: The new endpoint does not require an API key! It has completely open REST routes.
+# Connect straight to the new live endpoint structure
 URL = "https://nasa.gov"
 print("Fetching today's cosmic data from the new NASA platform...")
 
 try:
-    # Set a User-Agent so NASA's server firewall doesn't drop the Python stream connection
+    # Set a User-Agent so NASA's server firewall doesn't drop the connection
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
@@ -42,31 +42,30 @@ try:
                 print("Error: Invalid or empty response array received.")
                 exit(1)
             
-            # --- CRITICAL FIX: Extract the first post dictionary from the list ---
+            # Extract the first dictionary post object out of the data list array
             data = posts[0]
 
             print("--- RAW API RESPONSE FROM NASA ---")
             print(json.dumps(data, indent=2)) 
             print("----------------------------------")
 
-            # Extract Title from the WordPress text rendering dictionary
+            # Extract Title safely from the WordPress sub-rendered text block
             title_data = data.get('title', 'Cosmic View')
             if isinstance(title_data, dict):
                 title = title_data.get('rendered', 'Cosmic View')
             else:
                 title = str(title_data)
 
-            # Sanitize Date
+            # Sanitize Date strings
             raw_date = data.get('date', '')
             date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
             
-            # Pull Explanation out of the updated schema framework
+            # Check custom field parameters for description strings
             explanation = data.get('explanation', '')
             if not explanation and isinstance(data.get('content'), dict):
                 explanation = data.get('content', {}).get('rendered', '')
 
-            # --- TARGET MEDIA CHANNELS ACCURATELY ---
-            # Extract asset source parameters from the flat WordPress payload
+            # Extract asset source parameters from the WordPress payload
             img_src = data.get('featured_media_src_url', '')
             
             # Fallback checking: verify nested sub-dictionary keys if present
@@ -75,17 +74,13 @@ try:
                 explanation = explanation or apod.get('explanation', '')
                 img_src = img_src or apod.get('hdurl') or apod.get('url', '')
 
-            # Classify media types securely 
-            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src or '.mp4' in img_src:
+            # Classify media channels securely (Handles text/html links like today's ESA stream)
+            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src or 'html' in img_src:
                 media_type = 'video'
                 media_url = img_src
             else:
                 media_type = 'image'
                 hd_url = img_src
-
-            # Build HTML Layout (Windows Lock Screen Style with Full Containment)
-            # [Your remaining html_content template string code stays exactly the same here]
-
 
             # Build HTML Layout (Windows Lock Screen Style with Full Containment)
             html_content = f"""<!DOCTYPE html>
@@ -110,7 +105,7 @@ try:
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2;
         }}
-        #bg-container iframe {{ width: 100vw; height: 100vh; pointer-events: none; }}
+        #bg-container iframe {{ width: 100vw; height: 100vh; border: none; }}
 
         #lockscreen-card {{
             position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px; color: #ffffff;
@@ -137,8 +132,9 @@ try:
                 </script>"""
 
             elif media_type == 'video':
-                embed_url = media_url.replace("watch?v=", "embed/")
-                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
+                # Convert standard watch links into direct embed URLs safely
+                embed_url = media_url.replace("watch?v=", "embed/") if "watch?v=" in media_url else media_url
+                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
             <main id="lockscreen-card">
