@@ -34,7 +34,7 @@ try:
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
-        if response.status == 200:
+                if response.status == 200:
             raw_data = response.read().decode("utf-8")
             posts = json.loads(raw_data)
 
@@ -42,31 +42,50 @@ try:
                 print("Error: Invalid or empty response array received.")
                 exit(1)
             
-            # The new API outputs an array. The first item is always the latest post.
+            # --- CRITICAL FIX: Extract the first post dictionary from the list ---
             data = posts[0]
 
             print("--- RAW API RESPONSE FROM NASA ---")
             print(json.dumps(data, indent=2)) 
             print("----------------------------------")
 
-            # Update the keys to extract fields from the new WordPress schema
-            title = data.get('title', 'Cosmic View')
-            
-            # Clean up WordPress timestamps (turns 2026-10-07T00:00:00 into 2026-10-07)
+            # Extract Title from the WordPress text rendering dictionary
+            title_data = data.get('title', 'Cosmic View')
+            if isinstance(title_data, dict):
+                title = title_data.get('rendered', 'Cosmic View')
+            else:
+                title = str(title_data)
+
+            # Sanitize Date
             raw_date = data.get('date', '')
             date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
             
+            # Pull Explanation out of the updated schema framework
             explanation = data.get('explanation', '')
+            if not explanation and isinstance(data.get('content'), dict):
+                explanation = data.get('content', {}).get('rendered', '')
+
+            # --- TARGET MEDIA CHANNELS ACCURATELY ---
+            # Extract asset source parameters from the flat WordPress payload
+            img_src = data.get('featured_media_src_url', '')
             
-            # The new high-resolution picture URL key is featured_media_src_url
-            hd_url = data.get('featured_media_src_url', '')
-            
-            # Fallback helper: Check if it's a video asset
-            if 'youtube.com' in hd_url or 'vimeo.com' in hd_url or 'player.' in hd_url:
+            # Fallback checking: verify nested sub-dictionary keys if present
+            if isinstance(data.get('apod'), dict):
+                apod = data.get('apod')
+                explanation = explanation or apod.get('explanation', '')
+                img_src = img_src or apod.get('hdurl') or apod.get('url', '')
+
+            # Classify media types securely 
+            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src or '.mp4' in img_src:
                 media_type = 'video'
-                media_url = hd_url
+                media_url = img_src
             else:
                 media_type = 'image'
+                hd_url = img_src
+
+            # Build HTML Layout (Windows Lock Screen Style with Full Containment)
+            # [Your remaining html_content template string code stays exactly the same here]
+
 
             # Build HTML Layout (Windows Lock Screen Style with Full Containment)
             html_content = f"""<!DOCTYPE html>
