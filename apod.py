@@ -45,6 +45,7 @@ try:
             hd_url = data.get('hdurl', media_url)
             media_type = data.get('media_type', 'image')
 
+            # Build HTML Layout (Windows Lock Screen Style with Full Containment)
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,81 +54,45 @@ try:
     <title>NASA Picture of the Day - {title}</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body, html {{ width: 100%; height: 100%; overflow: hidden; font-family: apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000; }}
-
-        #bg-container{{
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 1;
+        body, html {{ width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #050505; }}
+        
+        /* Blurred mirrored layer behind the main image to prevent ugly empty black bars */
+        #bg-blur-layer {{
+            position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
+            background-size: cover; background-position: center;
+            filter: blur(40px) brightness(0.4); z-index: 1; opacity: 0.75;
         }}
 
-        #bg-container iframe {{
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;}}
+        /* The Main Image container: Keeps the photo 100% visible and uncropped */
+        #bg-container {{
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2;
+        }}
+        #bg-container iframe {{ width: 100vw; height: 100vh; pointer-events: none; }}
 
         #lockscreen-card {{
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            z-index: 2;
-            max-width: 420px;
-            padding: 24px;
-            color: #ffffff;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px; color: #ffffff;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
         }}
-
-        #title{{
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }}
-
-        #date{{
-           font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }}
-
-        #explanation-wrapper{{
-            max-height: 200px;
-            overflow-y: auto;
-            padding-right: 8px;
-        }}
-
-        #explanation{{
-            font-size: 0.95rem;
-            line-height: 1.4;
-            color: rgba(255, 255, 255, 0.9);
-        }}
-
-        #explanation-wrapper::-webkit-scrollbar {{
-            width: 6px;
-        }}
-
-        #explanation-wrapper::-webkit-scrollbar-thumb {{
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }}
+        #title {{ font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }}
+        #date {{ font-size: 0.85rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }}
+        #explanation-wrapper {{ max-height: 180px; overflow-y: auto; padding-right: 8px; }}
+        #explanation {{ font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }}
+        #explanation-wrapper::-webkit-scrollbar {{ width: 4px; }}
+        #explanation-wrapper::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.3); border-radius: 4px; }}
     </style>
-    </head>
+</head>
 <body>
+    <div id="bg-blur-layer"></div>
     <div id="bg-container">"""
 
             if media_type == 'image':
-                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";</script>"""
+                html_content += f"""<script>
+                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}')";
+                    document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";
+                </script>"""
+
             elif media_type == 'video':
                 embed_url = media_url.replace("watch?v=", "embed/")
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow='"autoplay"></iframe>"""
