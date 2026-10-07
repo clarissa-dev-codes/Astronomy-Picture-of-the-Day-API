@@ -34,7 +34,7 @@ try:
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
-                if response.status == 200:
+        if response.status == 200:
             raw_data = response.read().decode("utf-8")
             posts = json.loads(raw_data)
 
