@@ -1,14 +1,12 @@
 import os
 import urllib.request
 import json
-from datetime import datetime
 
-# The upcoming open REST endpoint does not require API keys
 URL = "https://nasa.gov"
-print("Pulling the absolute latest live data directly from NASA's backend...")
+print("Fetching fresh cosmic data from the new NASA API platform...")
 
 try:
-    # Set a User-Agent so NASA's server block doesn't deny python's connection
+    # Set a User-Agent header so NASA's firewall accepts the request
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
@@ -17,37 +15,26 @@ try:
             posts = json.loads(raw_data)
 
             if not posts or not isinstance(posts, list):
-                print("Error: Invalid or empty response array received.")
+                print("Error: No APOD posts returned from the server.")
                 exit(1)
             
-            # Extract the single newest object from the data stream
+            # Get the single newest post object
             post = posts[0]
             
-            # Map values out of the updated schema framework
+            # The new API provides flat fields directly on the object
             title = post.get('title', 'Cosmic View')
+            date_str = post.get('date', '')
             explanation = post.get('explanation', '')
+            hd_url = post.get('hdurl', '')
             
-            # Format and sanitize the standard date format string
-            raw_date = post.get('date', '')
-            date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
-            
-            # Core change: Grab the raw image source asset URL
-            img_src = post.get('featured_media_src_url', '')
-            
-            # Check fallback configurations inside nested dictionary parameters
-            if isinstance(post.get('apod'), dict):
-                apod = post.get('apod')
-                explanation = explanation or apod.get('explanation', '')
-                img_src = img_src or apod.get('url')
-
-            # Determine whether the asset is a video frame or standard image
-            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src:
-                media_type = 'video'
-            else:
+            # Determine if it's an image or a video/other media
+            # If hdurl is present, it's a high-res image asset
+            if hd_url:
                 media_type = 'image'
-
-            # Create a localized timestamp identifier string to force clear the browser's cache
-            cache_buster = int(datetime.now().timestamp())
+            else:
+                media_type = 'video'
+                # Fallback to the web article or an embed string if hdurl is empty
+                video_url = post.get('url', '') 
 
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -131,10 +118,9 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
-                # Appending the ?v= timestamp breaks local browser image file memory locks
-                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";</script>"""
+                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";</script>"""
             elif media_type == 'video':
-                embed_url = img_src.replace("watch?v=", "embed/")
+                embed_url = video_url.replace("watch?v=", "embed/")
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
@@ -151,8 +137,7 @@ try:
             with open("index.html", "w", encoding="utf-8") as file:
                 file.write(html_content)
 
-            print(f"Successfully generated future-proof index.html for date: {date_str}")
-            print(f"Targeted Image Asset: {img_src}")
+            print(f"Successfully compiled live dynamic page into index.html for date: {date_str}")
         else:
             print(f"Failed to fetch data. Status code: {response.status}")
 
