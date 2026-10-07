@@ -18,8 +18,6 @@ except Exception as fallback_err:
     print(f"Skipping .env parse (Running in cloud environment): {fallback_err}")
 # -------------------------------------
 
-
-API_KEY = os.environ.get("NASA_API")
 # Fallback values in case the API call drops entirely
 title = "Cosmic Windows Lockscreen"
 date_str = "Awaiting Sync"
@@ -27,31 +25,48 @@ explanation = "Connecting to NASA's deep space network. Your daily space update 
 hd_url = "https://unsplash.com" # High-res space backup image
 media_type = "image"
 
-if not API_KEY:
-    print("Error: NASA_API environment variable not set.")
-    exit(1)
-
-today_str = datetime.now().strftime("%Y-%m-%d")
-
-URL = f"https://api.nasa.gov/planetary/apod?api_key={API_KEY}&date={today_str}"
-print("Fetching today's cosmic data from NASA...")
+# NOTE: The new endpoint does not require an API key! It has completely open REST routes.
+URL = "https://nasa.gov"
+print("Fetching today's cosmic data from the new NASA platform...")
 
 try:
-    with urllib.request.urlopen(URL) as response:
+    # Set a User-Agent so NASA's server firewall doesn't drop the Python stream connection
+    req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
+    
+    with urllib.request.urlopen(req) as response:
         if response.status == 200:
             raw_data = response.read().decode("utf-8")
-            data = json.loads(raw_data)
+            posts = json.loads(raw_data)
+
+            if not posts or not isinstance(posts, list):
+                print("Error: Invalid or empty response array received.")
+                exit(1)
+            
+            # The new API outputs an array. The first item is always the latest post.
+            data = posts[0]
 
             print("--- RAW API RESPONSE FROM NASA ---")
             print(json.dumps(data, indent=2)) 
             print("----------------------------------")
 
+            # Update the keys to extract fields from the new WordPress schema
             title = data.get('title', 'Cosmic View')
-            date_str = data.get('date', '')
+            
+            # Clean up WordPress timestamps (turns 2026-10-07T00:00:00 into 2026-10-07)
+            raw_date = data.get('date', '')
+            date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
+            
             explanation = data.get('explanation', '')
-            media_url = data.get('url', '')
-            hd_url = data.get('hdurl', media_url)
-            media_type = data.get('media_type', 'image')
+            
+            # The new high-resolution picture URL key is featured_media_src_url
+            hd_url = data.get('featured_media_src_url', '')
+            
+            # Fallback helper: Check if it's a video asset
+            if 'youtube.com' in hd_url or 'vimeo.com' in hd_url or 'player.' in hd_url:
+                media_type = 'video'
+                media_url = hd_url
+            else:
+                media_type = 'image'
 
             # Build HTML Layout (Windows Lock Screen Style with Full Containment)
             html_content = f"""<!DOCTYPE html>
@@ -96,18 +111,15 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
-                # Generates a fresh unique number every second the script builds
                 cache_buster = int(time.time())
-                
                 html_content += f"""<script>
                     document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
                     document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
                 </script>"""
 
-
             elif media_type == 'video':
                 embed_url = media_url.replace("watch?v=", "embed/")
-                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow='"autoplay"></iframe>"""
+                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
             <main id="lockscreen-card">
