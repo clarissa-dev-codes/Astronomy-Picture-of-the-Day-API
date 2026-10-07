@@ -63,14 +63,12 @@
             const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
-            // Backup imagery asset if server connections experience timing lags
+            // Fixed fallback picture URL (Unsplash home page isn't a raw image stream)
             const defaultSpaceBg = "https://unsplash.com";
 
             try {
-                // FIXED FLAT STRING: Uses a globally whitelisted public space API database mirror link
-                // Appends a unique dynamic numbers fragment cleanly to bypass Chrome cache memory locks
-                const timestamp = Date.now();
-                const targetUrl = "https://githubusercontent.com" + timestamp;
+                // FIXED: Changed to the official live NASA API endpoint
+                const targetUrl = "https://nasa.gov";
                 
                 const res = await fetch(targetUrl);
                 if (!res.ok) throw new Error("Server response code fallback");
@@ -91,12 +89,25 @@
                 let hdUrl = data.hdurl || mediaUrl;
 
                 if (mediaType === 'video') {
-                    // Convert watch paths to direct embed configurations instantly
-                    let embedUrl = mediaUrl.replace("watch?v=", "embed/");
+                    // FIXED: Robust YouTube link processor handling both watch?v= and shared youtu.be URLs
+                    let embedUrl = mediaUrl;
+                    if (embedUrl.includes("://youtube.com")) {
+                        embedUrl = embedUrl.replace("://youtube.com", "://youtube.com");
+                    } else if (embedUrl.includes("youtu.be/")) {
+                        embedUrl = embedUrl.replace("youtu.be/", "://youtube.com");
+                    }
+                    
+                    // Force HTTPS channel compatibility
                     if (embedUrl.startsWith("http://")) {
                         embedUrl = embedUrl.replace("http://", "https://");
                     }
-                    container.innerHTML = `<iframe src="${embedUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+
+                    // Dynamically append video parameters properly checking if a '?' parameter sequence already exists
+                    const paramSeparator = embedUrl.includes("?") ? "&" : "?";
+                    const completeEmbedUrl = `${embedUrl}${paramSeparator}autoplay=1&mute=1&loop=1&playlist=${getVideoId(embedUrl)}&controls=0`;
+
+                    container.innerHTML = `<iframe src="${completeEmbedUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    blurLayer.style.display = "none"; // Videos don't natively map to background image styling layers
                 } else {
                     const finalImg = hdUrl || mediaUrl || defaultSpaceBg;
                     container.innerHTML = `<img src="${finalImg}" alt="Space Background Picture">`;
@@ -119,6 +130,12 @@
                 blurLayer.style.display = "block";
                 card.style.opacity = "1";
             }
+        }
+
+        // Helper function required by YouTube's API to loop a video via the loop=1 flag without manual player clicks
+        function getVideoId(url) {
+            const match = url.match(/(?:embed\/|v=)([a-zA-Z0-9_-]{11})/);
+            return match ? match[1] : "";
         }
         
         loadDashboard();
