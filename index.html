@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASA Picture of the Day - NASA Science</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000; }
+
+        #bg-container{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 1;
+        }
+
+        #bg-container iframe {
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;}
+
+        #lockscreen-card {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            z-index: 2;
+            max-width: 420px;
+            padding: 24px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        #title{
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        #date{
+           font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #explanation-wrapper{
+            max-height: 200px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+
+        #explanation{
+            font-size: 0.95rem;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        #explanation-wrapper::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #explanation-wrapper::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+    </style>
+    </head>
+<body>
+    <div id="bg-container"><script>document.getElementById('bg-container').style.backgroundImage = "url('https://science.nasa.gov/wp-content/themes/nasa-child/assets/images/nasa-logo@2x.png')";</script> </div>
+            <main id="lockscreen-card">
+                <div id="title">NASA Science</div>
+                <div id="date">2026-10-07</div>
+                <div id="explanation-wrapper">
+                    <div id="explanation">Have you ever seen a complete auroral oval? You can't see one from the ground because it makes too large a circle around one of Earth's magnetic poles. But spacecraft high above the Earth can see them. The featured video from ESA and CAS's robotic SMILE spacecraft shows not only a full auroral oval, but using ultraviolet light, one that occurred during the day. The time-lapse covers about an hour in late July and shows visually how variable and turbulent auroras really are. The points of light on the sides are distant stars that appear to move only because SMILE's camera view shifts as the spacecraft orbits the Earth. A goal of SMILE is to better understand how the Sun's wind interacts with the Earth's magnetosphere -- and so better understand how to protect astronauts, spacecraft, and ground-based electrical grids from solar storms.Tomorrow's picture: a supernova's pearls						</div>
+                </div>
+            </main>
+</body>
+</html>
