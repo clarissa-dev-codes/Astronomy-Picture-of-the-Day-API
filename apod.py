@@ -2,8 +2,28 @@ import os
 import urllib.request
 import json
 
+# --- SECURE LOCAL TESTING FALLBACK ---
+try:
+    if os.path.exists(".env"):
+        print("Local .env file detected. Extracting keys...")
+        with open(".env", "r") as f:
+            for line in f:
+                cleaned_line = line.strip()
+                if cleaned_line and not cleaned_line.startswith("#") and "=" in cleaned_line:
+                    key, value = cleaned_line.split("=", 1)
+                    os.environ[key.strip()] = value.strip()
+except Exception as fallback_err:
+    print(f"Skipping .env parse (Running in cloud environment): {fallback_err}")
+# -------------------------------------
+
 
 API_KEY = os.environ.get("NASA_API")
+# Fallback values in case the API call drops entirely
+title = "Cosmic Windows Lockscreen"
+date_str = "Awaiting Sync"
+explanation = "Connecting to NASA's deep space network. Your daily space update will populate momentarily."
+hd_url = "https://unsplash.com" # High-res space backup image
+media_type = "image"
 
 if not API_KEY:
     print("Error: NASA_API environment variable not set.")
