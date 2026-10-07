@@ -2,12 +2,11 @@ import os
 import urllib.request
 import json
 
-# Note: The new API does NOT require an API Key! It uses open WordPress REST routing.
 URL = "https://nasa.gov"
 print("Fetching fresh cosmic data from the new NASA API platform...")
 
 try:
-    # Set a User-Agent header so NASA's new firewall doesn't block the Python request
+    # Set a User-Agent header so NASA's firewall accepts the request
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
@@ -15,27 +14,27 @@ try:
             raw_data = response.read().decode("utf-8")
             posts = json.loads(raw_data)
 
-            if not posts:
+            if not posts or not isinstance(posts, list):
                 print("Error: No APOD posts returned from the server.")
                 exit(1)
             
-            # The API returns an array of posts. The first item [0] is always today's post.
+            # Get the single newest post object
             post = posts[0]
             
-            # The new endpoint groups the APOD specific variables inside 'apod'
-            apod_data = post.get('apod', {})
-
-            title = post.get('title', {}).get('rendered', 'Cosmic View')
-            date_str = apod_data.get('date', '')
-            explanation = apod_data.get('explanation', '')
+            # The new API provides flat fields directly on the object
+            title = post.get('title', 'Cosmic View')
+            date_str = post.get('date', '')
+            explanation = post.get('explanation', '')
+            hd_url = post.get('hdurl', '')
             
-            # Extract imagery fields
-            media_url = apod_data.get('url', '')
-            hd_url = apod_data.get('hdurl', media_url)
-            
-            # Check for media type (video or image)
-            # The new endpoint natively identifies video posts
-            media_type = 'video' if 'youtube.com' in media_url or 'vimeo.com' in media_url else 'image'
+            # Determine if it's an image or a video/other media
+            # If hdurl is present, it's a high-res image asset
+            if hd_url:
+                media_type = 'image'
+            else:
+                media_type = 'video'
+                # Fallback to the web article or an embed string if hdurl is empty
+                video_url = post.get('url', '') 
 
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -121,7 +120,7 @@ try:
             if media_type == 'image':
                 html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";</script>"""
             elif media_type == 'video':
-                embed_url = media_url.replace("watch?v=", "embed/")
+                embed_url = video_url.replace("watch?v=", "embed/")
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
