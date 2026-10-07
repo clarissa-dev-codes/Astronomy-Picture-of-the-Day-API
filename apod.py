@@ -3,52 +3,52 @@ import urllib.request
 import json
 from datetime import datetime
 
-# The upcoming open REST endpoint does not require API keys or secrets
-URL = "https://nasa.gov"
-print("Pulling the absolute latest live data directly from NASA's backend...")
+# --- SECURE LOCAL TESTING FALLBACK ---
+try:
+    if os.path.exists(".env"):
+        print("Local .env file detected. Extracting keys...")
+        with open(".env", "r") as f:
+            for line in f:
+                cleaned_line = line.strip()
+                if cleaned_line and not cleaned_line.startswith("#") and "=" in cleaned_line:
+                    key, value = cleaned_line.split("=", 1)
+                    os.environ[key.strip()] = value.strip()
+except Exception as fallback_err:
+    print(f"Skipping .env parse (Running in cloud environment): {fallback_err}")
+# -------------------------------------
+
+
+API_KEY = os.environ.get("NASA_API")
+# Fallback values in case the API call drops entirely
+title = "Cosmic Windows Lockscreen"
+date_str = "Awaiting Sync"
+explanation = "Connecting to NASA's deep space network. Your daily space update will populate momentarily."
+hd_url = "https://unsplash.com" # High-res space backup image
+media_type = "image"
+
+if not API_KEY:
+    print("Error: NASA_API environment variable not set.")
+    exit(1)
+
+today_str = datetime.now().strftime("%Y-%m-%d")
+
+URL = f"https://api.nasa.gov/planetary/apod?api_key={API_KEY}&date={today_str}"
+print("Fetching today's cosmic data from NASA...")
 
 try:
-    # Set a User-Agent so NASA's server firewall doesn't drop the connection
-    req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
-    
-    with urllib.request.urlopen(req) as response:
+    with urllib.request.urlopen(URL) as response:
         if response.status == 200:
             raw_data = response.read().decode("utf-8")
-            posts = json.loads(raw_data)
+            data = json.loads(raw_data)
 
-            if not posts or not isinstance(posts, list):
-                print("Error: Invalid or empty response array received.")
-                exit(1)
-            
-            # Extract the single newest object from the data stream
-            post = posts[0]
-            
-            # Map values out of the updated schema framework
-            title = post.get('title', 'Cosmic View')
-            explanation = post.get('explanation', '')
-            
-            # Format and sanitize the standard date format string
-            raw_date = post.get('date', '')
-            date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
-            
-            # Grab the raw image source asset URL
-            img_src = post.get('featured_media_src_url', '')
-            
-            # Check fallback configurations inside nested dictionary parameters
-            if isinstance(post.get('apod'), dict):
-                apod = post.get('apod')
-                explanation = explanation or apod.get('explanation', '')
-                img_src = img_src or apod.get('url')
+            title = data.get('title', 'Cosmic View')
+            date_str = data.get('date', '')
+            explanation = data.get('explanation', '')
+            media_url = data.get('url', '')
+            hd_url = data.get('hdurl', media_url)
+            media_type = data.get('media_type', 'image')
 
-            # Determine whether the asset is a video frame or standard image
-            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src:
-                media_type = 'video'
-            else:
-                media_type = 'image'
-
-            # Create a localized timestamp identifier string to force clear the browser's cache
-            cache_buster = int(datetime.now().timestamp())
-
+            # Build HTML Layout (Windows Lock Screen Style with Full Containment)
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,84 +57,48 @@ try:
     <title>NASA Picture of the Day - {title}</title>
     <style>
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body, html {{ width: 100%; height: 100%; overflow: hidden; font-family: apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #000; }}
-
-        #bg-container{{
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 1;
+        body, html {{ width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #050505; }}
+        
+        /* Blurred mirrored layer behind the main image to prevent ugly empty black bars */
+        #bg-blur-layer {{
+            position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
+            background-size: cover; background-position: center;
+            filter: blur(40px) brightness(0.4); z-index: 1; opacity: 0.75;
         }}
 
-        #bg-container iframe {{
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;}}
+        /* The Main Image container: Keeps the photo 100% visible and uncropped */
+        #bg-container {{
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2;
+        }}
+        #bg-container iframe {{ width: 100vw; height: 100vh; pointer-events: none; }}
 
         #lockscreen-card {{
-            position: absolute;
-            bottom: 40px;
-            left: 40px;
-            z-index: 2;
-            max-width: 420px;
-            padding: 24px;
-            color: #ffffff;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px; color: #ffffff;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
         }}
-
-        #title{{
-            font-size: 1.5rem;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }}
-
-        #date{{
-           font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }}
-
-        #explanation-wrapper{{
-            max-height: 200px;
-            overflow-y: auto;
-            padding-right: 8px;
-        }}
-
-        #explanation{{
-            font-size: 0.95rem;
-            line-height: 1.4;
-            color: rgba(255, 255, 255, 0.9);
-        }}
-
-        #explanation-wrapper::-webkit-scrollbar {{
-            width: 6px;
-        }}
-
-        #explanation-wrapper::-webkit-scrollbar-thumb {{
-            background-color: rgba(255, 255, 255, 0.3);
-            border-radius: 3px;
-        }}
+        #title {{ font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }}
+        #date {{ font-size: 0.85rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }}
+        #explanation-wrapper {{ max-height: 180px; overflow-y: auto; padding-right: 8px; }}
+        #explanation {{ font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }}
+        #explanation-wrapper::-webkit-scrollbar {{ width: 4px; }}
+        #explanation-wrapper::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.3); border-radius: 4px; }}
     </style>
-    </head>
+</head>
 <body>
+    <div id="bg-blur-layer"></div>
     <div id="bg-container">"""
 
             if media_type == 'image':
-                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";</script>"""
+                html_content += f"""<script>
+                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}')";
+                    document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";
+                </script>"""
+
             elif media_type == 'video':
-                embed_url = img_src.replace("watch?v=", "embed/")
-                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
+                embed_url = media_url.replace("watch?v=", "embed/")
+                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow='"autoplay"></iframe>"""
 
             html_content += f""" </div>
             <main id="lockscreen-card">
@@ -150,10 +114,9 @@ try:
             with open("index.html", "w", encoding="utf-8") as file:
                 file.write(html_content)
 
-            print(f"Successfully generated future-proof index.html for date: {date_str}")
-            print(f"Targeted Image Asset: {img_src}")
+            print("Successfully compiled dynamic lock screen page into index.html.")
         else:
-            print(f"Failed to fetch data. Status code: {response.status}")
+            print(f"Failed to fetch data. NASA Status code: {response.status}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
