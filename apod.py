@@ -2,6 +2,7 @@ import os
 import urllib.request
 import json
 from datetime import datetime
+import time
 
 # --- SECURE LOCAL TESTING FALLBACK ---
 try:
@@ -95,10 +96,14 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
+                # Generates a fresh unique number every second the script builds
+                cache_buster = int(time.time())
+                
                 html_content += f"""<script>
-                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}')";
-                    document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";
+                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
+                    document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
                 </script>"""
+
 
             elif media_type == 'video':
                 embed_url = media_url.replace("watch?v=", "embed/")
