@@ -6,100 +6,108 @@
     <title>NASA Picture of the Day</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, html { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #050505; color: #fff; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; background-color: #050505; color: #fff; }
         
-        /* Fullscreen background container */
-        #bg-container { 
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background-color: #000; 
-        }
-        #bg-container iframe, #bg-container img { 
-            width: 100%; height: 100%; border: none; object-fit: cover; position: absolute; top: 0; left: 0; 
+        /* Mirror blur tracking layer */
+        #bg-blur-layer {
+            position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
+            background-size: cover; background-position: center;
+            filter: blur(40px) brightness(0.3); z-index: 1; opacity: 0.75;
+            display: none;
         }
 
-        /* Glassmorphism details card */
+        /* Fixed full viewport media anchor */
+        #bg-container { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; background-color: #000; 
+        }
+        #bg-container iframe, #bg-container img { 
+            width: 100%; height: 100%; border: none; object-fit: contain; position: absolute; top: 0; left: 0; 
+        }
+
+        /* Windows Glassmorphism Lockscreen Panel Layout */
         #lockscreen-card {
-            position: absolute; bottom: 40px; left: 40px; z-index: 2; max-width: 420px; padding: 24px;
+            position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px;
             background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-            opacity: 0; transition: opacity 0.5s ease-in-out;
+            opacity: 0; transition: opacity 0.4s ease-in-out;
         }
-        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        #title { font-size: 1.4rem; font-weight: 600; margin-bottom: 4px; }
         #date { font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        #explanation-wrapper { max-height: 180px; overflow-y: auto; padding-right: 8px; }
+        #explanation-wrapper { max-height: 180px; overflow-y: auto; padding-right: 4px; }
         #explanation { font-size: 0.95rem; line-height: 1.5; color: rgba(255, 255, 255, 0.9); }
         #explanation-wrapper::-webkit-scrollbar { width: 4px; }
-        #explanation-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+        #explanation-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 4px; }
     </style>
 </head>
 <body>
+    <div id="bg-blur-layer"></div>
     <div id="bg-container"></div>
     
     <main id="lockscreen-card">
         <h1 id="title">Loading Telemetry...</h1>
         <div id="date"></div>
         <div id="explanation-wrapper">
-            <div id="explanation">Connecting directly to NASA space network...</div>
+            <div id="explanation">Connecting to NASA telemetry streams...</div>
         </div>
     </main>
 
     <script>
         async function loadDashboard() {
             const container = document.getElementById('bg-container');
+            const blurLayer = document.getElementById('bg-blur-layer');
             const card = document.getElementById('lockscreen-card');
             
-            // Premium fallback image in case NASA's server experiences sync delays
-            const fallbackImage = "https://unsplash.com";
+            // Premium backup high-resolution image string URL path
+            const defaultSpaceBg = "https://unsplash.com";
 
             try {
-                // Fetch directly from NASA's active production stream with a time cache buster
+                // Read fresh values straight from NASA's blogging REST API engine
                 const res = await fetch(`https://nasa.gov{new Date().getTime()}`);
-                if (!res.ok) throw new Error("NASA API connection error");
+                if (!res.ok) throw new Error("API Route Failure");
                 
                 const posts = await res.json();
-                if (!posts || posts.length === 0) throw new Error("Empty payload returned");
-                
+                if (!posts || posts.length === 0) throw new Error("Null data footprint");
                 const data = posts[0];
 
-                // 1. Extract and display text content
+                // 1. Populate Text Strings
                 const title = data.title?.rendered || data.title || "Cosmic View";
                 document.getElementById('title').innerText = title;
                 document.title = `NASA APOD - ${title}`;
-
-                // Extract date and strip out any trailing timestamp formatting
-                const rawDate = data.date || "";
-                document.getElementById('date').innerText = rawDate.split("T")[0];
-
-                // Extract description text layout safely
+                document.getElementById('date').innerText = (data.date || "").split("T")[0];
                 document.getElementById('explanation').innerHTML = data.explanation || data.content?.rendered || "";
 
-                // 2. Identify and safely render the background media asset
+                // 2. Track down and isolate Media components
                 const videoUrl = data.basic_html_url || "";
                 const imageUrl = data.featured_media_src_url || "";
 
-                // If it's a valid video link, embed an iframe; otherwise, use the image
                 if (videoUrl && !videoUrl.includes('nasa-logo')) {
-                    container.innerHTML = `<iframe src="${videoUrl}?autoplay=1&mute=1&loop=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    // Inject iframe and pass parameters to guarantee clean layout fills
+                    container.innerHTML = `<iframe src="${videoUrl}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
                 } else if (imageUrl && !imageUrl.includes('nasa-logo')) {
-                    container.innerHTML = `<img src="${imageUrl}" alt="NASA APOD Image">`;
+                    container.innerHTML = `<img src="${imageUrl}" alt="Space Background">`;
+                    blurLayer.style.backgroundImage = `url('${imageUrl}')`;
+                    blurLayer.style.display = "block";
                 } else {
-                    container.innerHTML = `<img src="${fallbackImage}" alt="Space Fallback">`;
+                    // Safe backup display route configuration
+                    container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic View">`;
+                    blurLayer.style.backgroundImage = `url('${defaultSpaceBg}')`;
+                    blurLayer.style.display = "block";
                 }
 
-                // Smoothly fade in the lockscreen card text data container once loaded
+                // Reveal user profile visual overlay cards safely
                 card.style.opacity = "1";
 
             } catch (err) {
-                console.error("Dashboard error:", err);
-                
-                // Fail-safe view setup: displays fallback layout so the page is never blank
+                console.error("Layout load catch block error:", err);
                 document.getElementById('title').innerText = "Deep Space Network";
                 document.getElementById('date').innerText = new Date().toISOString().split('T')[0];
-                document.getElementById('explanation').innerText = "NASA data feeds are currently re-routing. Enjoy this view of the cosmos in the meantime.";
-                container.innerHTML = `<img src="${fallbackImage}" alt="Space Fallback">`;
+                document.getElementById('explanation').innerText = "NASA transmission is routing. Enjoy this look at the stars while systems sync.";
+                container.innerHTML = `<img src="${defaultSpaceBg}" alt="Cosmic View">`;
+                blurLayer.style.backgroundImage = `url('${defaultSpaceBg}')`;
+                blurLayer.style.display = "block";
                 card.style.opacity = "1";
             }
         }
-        
         loadDashboard();
     </script>
 </body>
