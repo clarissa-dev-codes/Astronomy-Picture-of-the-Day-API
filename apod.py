@@ -22,15 +22,14 @@ except Exception as fallback_err:
 title = "Cosmic Windows Lockscreen"
 date_str = "Awaiting Sync"
 explanation = "Connecting to NASA's deep space network. Your daily space update will populate momentarily."
-hd_url = "https://unsplash.com" 
+img_src = "https://unsplash.com" 
 media_type = "image"
 
-# Connect straight to the new live endpoint structure
+# Fetch directly from the modern active content core stream
 URL = "https://nasa.gov"
-print("Fetching today's cosmic data from the new NASA platform...")
+print("Connecting directly to the live production database feed...")
 
 try:
-    # Set a User-Agent so NASA's server firewall doesn't drop the connection
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
     
     with urllib.request.urlopen(req) as response:
@@ -42,47 +41,48 @@ try:
                 print("Error: Invalid or empty response array received.")
                 exit(1)
             
-            # Extract the first dictionary post object out of the data list array
-            data = posts[0]
+            # --- FIXED: Target the first post object inside the response list ---
+            single_post = posts[0]
 
             print("--- RAW API RESPONSE FROM NASA ---")
-            print(json.dumps(data, indent=2)) 
+            print(json.dumps(single_post, indent=2)) 
             print("----------------------------------")
 
-            # Extract Title safely from the WordPress sub-rendered text block
-            title_data = data.get('title', 'Cosmic View')
-            if isinstance(title_data, dict):
-                title = title_data.get('rendered', 'Cosmic View')
+            # Extract Title securely across both direct strings and rendered objects
+            title_obj = single_post.get('title', 'Cosmic View')
+            if isinstance(title_obj, dict):
+                title = title_obj.get('rendered', 'Cosmic View')
             else:
-                title = str(title_data)
+                title = str(title_obj)
 
-            # Sanitize Date strings
-            raw_date = data.get('date', '')
+            # Sanitize Date
+            raw_date = single_post.get('date', '')
             date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
             
-            # Check custom field parameters for description strings
-            explanation = data.get('explanation', '')
-            if not explanation and isinstance(data.get('content'), dict):
-                explanation = data.get('content', {}).get('rendered', '')
+            # Extract description strings safely from custom post parameters
+            explanation = single_post.get('explanation', '')
+            if not explanation and isinstance(single_post.get('content'), dict):
+                explanation = single_post.get('content', {}).get('rendered', '')
 
-            # Extract asset source parameters from the WordPress payload
-            img_src = data.get('featured_media_src_url', '')
+            # Gather asset URLs using sequential fallback mapping
+            img_src = single_post.get('featured_media_src_url', '')
             
-            # Fallback checking: verify nested sub-dictionary keys if present
-            if isinstance(data.get('apod'), dict):
-                apod = data.get('apod')
-                explanation = explanation or apod.get('explanation', '')
-                img_src = img_src or apod.get('hdurl') or apod.get('url', '')
+            if isinstance(single_post.get('apod'), dict):
+                apod_data = single_post.get('apod')
+                explanation = explanation or apod_data.get('explanation', '')
+                img_src = apod_data.get('hdurl') or apod_data.get('url') or img_src
 
-            # Classify media channels securely (Handles text/html links like today's ESA stream)
-            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src or 'html' in img_src:
+            # Emergency asset routing to keep things from going blank
+            if not img_src or not isinstance(img_src, str) or img_src.strip() == "":
+                img_src = "https://unsplash.com"
+
+            # Determine whether the media asset is a video stream or traditional picture image
+            if any(k in img_src for k in ['youtube.com', 'vimeo.com', 'player.', '.html', 'embed']):
                 media_type = 'video'
-                media_url = img_src
             else:
                 media_type = 'image'
-                hd_url = img_src
 
-            # Build HTML Layout (Windows Lock Screen Style with Full Containment)
+            # Build HTML Layout (Fixed full screen structure viewport logic)
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -93,19 +93,27 @@ try:
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body, html {{ width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #050505; }}
         
-        /* Blurred mirrored layer behind the main image to prevent ugly empty black bars */
         #bg-blur-layer {{
             position: fixed; top: -10%; left: -10%; width: 120vw; height: 120vh;
             background-size: cover; background-position: center;
             filter: blur(40px) brightness(0.4); z-index: 1; opacity: 0.75;
+            display: {"block" if media_type == "image" else "none"};
         }}
 
-        /* The Main Image container: Keeps the photo 100% visible and uncropped */
         #bg-container {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background-size: contain; background-position: center; background-repeat: no-repeat; z-index: 2;
         }}
-        #bg-container iframe {{ width: 100vw; height: 100vh; border: none; }}
+        
+        /* Fixed iframe properties: forces video frames to consume the full viewport space */
+        #bg-container iframe {{ 
+            width: 100%; 
+            height: 100%; 
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }}
 
         #lockscreen-card {{
             position: absolute; bottom: 40px; left: 40px; z-index: 3; max-width: 420px; padding: 24px; color: #ffffff;
@@ -127,14 +135,14 @@ try:
             if media_type == 'image':
                 cache_buster = int(time.time())
                 html_content += f"""<script>
-                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
-                    document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}?v={cache_buster}')";
+                    document.getElementById('bg-blur-layer').style.backgroundImage = "url('{img_src}?v={cache_buster}')";
+                    document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";
                 </script>"""
 
             elif media_type == 'video':
-                # Convert standard watch links into direct embed URLs safely
-                embed_url = media_url.replace("watch?v=", "embed/") if "watch?v=" in media_url else media_url
-                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay"></iframe>"""
+                # Convert watch layouts to clean embedded tracking configurations automatically
+                embed_url = img_src.replace("watch?v=", "embed/") if "watch?v=" in img_src else img_src
+                html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" allow="autoplay; encrypted-media" allowfullscreen></iframe>"""
 
             html_content += f""" </div>
             <main id="lockscreen-card">
@@ -150,7 +158,7 @@ try:
             with open("index.html", "w", encoding="utf-8") as file:
                 file.write(html_content)
 
-            print("Successfully compiled dynamic lock screen page into index.html.")
+            print(f"Successfully compiled dynamic lock screen page into index.html for date: {date_str}")
         else:
             print(f"Failed to fetch data. NASA Status code: {response.status}")
 
