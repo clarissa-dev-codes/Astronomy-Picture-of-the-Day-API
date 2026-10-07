@@ -43,7 +43,7 @@
         async function loadDashboard() {
             try {
                 // Fetch your local data snapshot with a cache buster to force updates
-                const res = await fetch(`data.json?v=${new Date().getTime()}`);
+                const res = await fetch(`./data.json?v=${new Date().getTime()}`);
                 const data = await res.json();
 
                 // 1. Resolve Title text fields cleanly
