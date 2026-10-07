@@ -41,6 +41,10 @@ try:
             raw_data = response.read().decode("utf-8")
             data = json.loads(raw_data)
 
+            print("--- RAW API RESPONSE FROM NASA ---")
+            print(json.dumps(data, indent=2)) 
+            print("----------------------------------")
+
             title = data.get('title', 'Cosmic View')
             date_str = data.get('date', '')
             explanation = data.get('explanation', '')
