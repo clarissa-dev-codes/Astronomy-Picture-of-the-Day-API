@@ -1,40 +1,39 @@
 import os
 import urllib.request
 import json
+from datetime import datetime
 
-URL = "https://nasa.gov"
-print("Fetching fresh cosmic data from the new NASA API platform...")
+API_KEY = os.environ.get("NASA_API")
+
+if not API_KEY:
+    print("Error: NASA_API environment variable not set.")
+    exit(1)
+
+# Format today's date to fetch the newest entry explicitly
+today_str = datetime.now().strftime("%Y-%m-%d")
+URL = f"https://nasa.gov{API_KEY}&date={today_str}"
+print(f"Fetching fresh cosmic data from NASA ({today_str})...")
 
 try:
-    # Set a User-Agent header so NASA's firewall accepts the request
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
-    
     with urllib.request.urlopen(req) as response:
         if response.status == 200:
             raw_data = response.read().decode("utf-8")
-            posts = json.loads(raw_data)
+            data = json.loads(raw_data)
 
-            if not posts or not isinstance(posts, list):
-                print("Error: No APOD posts returned from the server.")
-                exit(1)
+            # Map the exact fields provided by NASA's new rewired API pipeline
+            title = data.get('title', 'Cosmic View')
+            date_str = data.get('date', today_str)
+            explanation = data.get('explanation', '')
             
-            # Get the single newest post object
-            post = posts[0]
+            # The new schema drops 'hdurl' and outputs the direct asset link to 'url'
+            media_url = data.get('url', '')
             
-            # The new API provides flat fields directly on the object
-            title = post.get('title', 'Cosmic View')
-            date_str = post.get('date', '')
-            explanation = post.get('explanation', '')
-            hd_url = post.get('hdurl', '')
-            
-            # Determine if it's an image or a video/other media
-            # If hdurl is present, it's a high-res image asset
-            if hd_url:
-                media_type = 'image'
-            else:
+            # Check if the asset is an image or video based on extension/domain
+            if 'youtube.com' in media_url or '://vimeo.com' in media_url or 'html' in media_url:
                 media_type = 'video'
-                # Fallback to the web article or an embed string if hdurl is empty
-                video_url = post.get('url', '') 
+            else:
+                media_type = 'image'
 
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -118,9 +117,9 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
-                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{hd_url}')";</script>"""
+                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{media_url}')";</script>"""
             elif media_type == 'video':
-                embed_url = video_url.replace("watch?v=", "embed/")
+                embed_url = media_url.replace("watch?v=", "embed/")
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
@@ -139,7 +138,7 @@ try:
 
             print(f"Successfully compiled live dynamic page into index.html for date: {date_str}")
         else:
-            print(f"Failed to fetch data. Status code: {response.status}")
+            print(f"Failed to fetch data. NASA Status code: {response.status}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
