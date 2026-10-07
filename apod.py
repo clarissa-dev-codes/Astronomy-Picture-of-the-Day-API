@@ -3,37 +3,51 @@ import urllib.request
 import json
 from datetime import datetime
 
-API_KEY = os.environ.get("NASA_API")
-
-if not API_KEY:
-    print("Error: NASA_API environment variable not set.")
-    exit(1)
-
-# Format today's date to fetch the newest entry explicitly
-today_str = datetime.now().strftime("%Y-%m-%d")
-URL = f"https://nasa.gov{API_KEY}&date={today_str}"
-print(f"Fetching fresh cosmic data from NASA ({today_str})...")
+# The upcoming open REST endpoint does not require API keys
+URL = "https://nasa.gov"
+print("Pulling the absolute latest live data directly from NASA's backend...")
 
 try:
+    # Set a User-Agent so NASA's server block doesn't deny python's connection
     req = urllib.request.Request(URL, headers={'User-Agent': 'Mozilla/5.0'})
+    
     with urllib.request.urlopen(req) as response:
         if response.status == 200:
             raw_data = response.read().decode("utf-8")
-            data = json.loads(raw_data)
+            posts = json.loads(raw_data)
 
-            # Map the exact fields provided by NASA's new rewired API pipeline
-            title = data.get('title', 'Cosmic View')
-            date_str = data.get('date', today_str)
-            explanation = data.get('explanation', '')
+            if not posts or not isinstance(posts, list):
+                print("Error: Invalid or empty response array received.")
+                exit(1)
             
-            # The new schema drops 'hdurl' and outputs the direct asset link to 'url'
-            media_url = data.get('url', '')
+            # Extract the single newest object from the data stream
+            post = posts[0]
             
-            # Check if the asset is an image or video based on extension/domain
-            if 'youtube.com' in media_url or '://vimeo.com' in media_url or 'html' in media_url:
+            # Map values out of the updated schema framework
+            title = post.get('title', 'Cosmic View')
+            explanation = post.get('explanation', '')
+            
+            # Format and sanitize the standard date format string
+            raw_date = post.get('date', '')
+            date_str = raw_date.split('T')[0] if 'T' in raw_date else raw_date
+            
+            # Core change: Grab the raw image source asset URL
+            img_src = post.get('featured_media_src_url', '')
+            
+            # Check fallback configurations inside nested dictionary parameters
+            if isinstance(post.get('apod'), dict):
+                apod = post.get('apod')
+                explanation = explanation or apod.get('explanation', '')
+                img_src = img_src or apod.get('url')
+
+            # Determine whether the asset is a video frame or standard image
+            if 'youtube.com' in img_src or 'vimeo.com' in img_src or 'player.' in img_src:
                 media_type = 'video'
             else:
                 media_type = 'image'
+
+            # Create a localized timestamp identifier string to force clear the browser's cache
+            cache_buster = int(datetime.now().timestamp())
 
             html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -117,9 +131,10 @@ try:
     <div id="bg-container">"""
 
             if media_type == 'image':
-                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{media_url}')";</script>"""
+                # Appending the ?v= timestamp breaks local browser image file memory locks
+                html_content += f"""<script>document.getElementById('bg-container').style.backgroundImage = "url('{img_src}?v={cache_buster}')";</script>"""
             elif media_type == 'video':
-                embed_url = media_url.replace("watch?v=", "embed/")
+                embed_url = img_src.replace("watch?v=", "embed/")
                 html_content += f"""<iframe src="{embed_url}?autoplay=1&mute=1&loop=1&controls=0" frameborder="0" allow="autoplay"></iframe>"""
 
             html_content += f""" </div>
@@ -136,9 +151,10 @@ try:
             with open("index.html", "w", encoding="utf-8") as file:
                 file.write(html_content)
 
-            print(f"Successfully compiled live dynamic page into index.html for date: {date_str}")
+            print(f"Successfully generated future-proof index.html for date: {date_str}")
+            print(f"Targeted Image Asset: {img_src}")
         else:
-            print(f"Failed to fetch data. NASA Status code: {response.status}")
+            print(f"Failed to fetch data. Status code: {response.status}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
