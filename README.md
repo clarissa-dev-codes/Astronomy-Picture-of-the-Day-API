@@ -1,6 +1,6 @@
 # 🌌 Astronomy Picture of the Day (APOD) - Windows Lock Screen App
 
-A responsive, automated web application that leverages NASA's public API to fetch and display the daily space image and educational description. The layout features an elegant design inspired by the **Microsoft Windows Lock Screen**, utilizing a modern blur-effect data window tucked into the corner of a fullscreen canvas.
+A responsive, automated web application that leverages NASA's public data streams to fetch and display the daily space media and educational description. The layout features an elegant design inspired by the **Microsoft Windows Lock Screen**, utilizing a modern blur-effect data window tucked into the corner of a fullscreen canvas.
 
 ## 🔗 Live Deployment
 Experience the live application here: 
@@ -10,20 +10,20 @@ Experience the live application here:
 
 ## 🛠️ System Architecture & Automation
 
-To convert my original local terminal application into a global static web page while protecting server privacy, I built a serverless pipeline:
-1. **Python Engine (`apod.py`)**: Connects to NASA endpoints using browser headers, captures payload parameters (Title, HD Image URL, Description), and dynamically rewrites a clean frontend markup template into an optimized `index.html`.
-2. **GitHub Actions Workflow**: A cloud-based automation script scheduled via a cron job to fire **every morning at 8:00 AM UTC**. 
-3. **GitHub Pages Deployment**: Rather than tracking changing data on the `main` branch, the background pipeline compiles the code and pushes the build artifacts directly to an isolated `gh-pages` branch for safe, reliable delivery.
+To maximize uptime, eliminate data-sync latency, and remove server-side dependencies, this application utilizes a client-side serverless architecture:
+1. **Direct API Synchronization**: The client browser queries an automated, globally whitelisted public space API database mirror link at runtime, completely avoiding API token dependencies.
+2. **Dynamic Media Parsing**: Client-side JavaScript natively identifies the daily payload classification (Image vs. Interactive Video Loop) and applies real-time HTTPS enforcement to bypass browser security mixed-content blocks.
+3. **GitHub Pages Deployment**: Hosted entirely as a high-performance static site operating straight out of the production repository branch for rapid delivery and zero infrastructure costs.
 
 ---
 
 ## 💡 What I Learned During This Project
 
-Building this project taught me several critical concepts across backend logic, security engineering, and cloud operations:
+Building this project taught me several critical concepts across backend refactoring, API integration, and architectural optimization:
 
-* **API Token Security & Git Hygiene**: I learned why hardcoding private credentials inside client-side JavaScript is dangerous for static builds. By creating a `.env` local architecture and moving keys over to **GitHub Repository Secrets**, I successfully protected my `NASA_API` token from open public exposure.
-* **Continuous Integration & Automation (CI/CD)**: Setting up GitHub Actions taught me how to configure cloud workflow machines, manage automated build schedules, and grant precise read/write bot permissions.
-* **Dynamic Web Generation**: Instead of manually editing text files, I used Python file I/O operations (`with open()`) to dynamically inject server data strings straight into production-ready HTML/CSS structures.
+* **Architectural Refactoring & Decoupling**: I learned the value of pivoting when upstream data structures shift. By moving away from an external Python build environment, I successfully transformed a fragile server-dependent script into an unbreakable serverless web app.
+* **Client-Side Async Operations**: Implementing asynchronous JavaScript (`async/await`) taught me how to cleanly handle real-time data streaming, fetch JSON payloads securely without exposing private API keys, and manage runtime errors.
+* **Robust Fail-Safe Routing**: I designed multiple fallback protection layers within the execution script, ensuring that if upstream networks drop or delay syncing, the dashboard gracefully swaps to premium deep-space asset backups instead of crashing.
 * **Responsive Visual Styling & Glassmorphism**: I learned how to work with viewport layout dimensions (`100vw` / `100vh`) and modern backdrop filters (`backdrop-filter: blur()`) to mimic premium OS desktop elements across dynamic screen sizes.
 
 ---
@@ -31,12 +31,9 @@ Building this project taught me several critical concepts across backend logic, 
 ## 🗂️ Project Directory Layout
 
 ```text
-├── .github/workflows/
-│   └── update_apod.yml   # Cloud automation and deployment instructions
-├── .gitignore            # Security rules ensuring local .env stays private
+├── index.html            # Core frontend layout and async data processing engine
+├── oldcode.txt           # The python code for the terminal code
 ├── README.md             # Project documentation (You are here!)
-├── apod.py               # Main Python processing file
-├── index.html            # Compiled layout (dynamically updated daily)
 └── LICENSE               # Open-source licensing documentation
 ```
 
